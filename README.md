@@ -23,5 +23,5 @@ A Python-based GUI application for image encryption and decryption using chaotic
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/image-encryption-tool.git
+git clone (https://github.com/shukla-031/chaotic-image-encryption/commits?author=shukla-031)
 cd image-encryption-tool
