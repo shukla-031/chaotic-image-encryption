@@ -1,0 +1,9 @@
+Arnold Iterations: Number of scrambling iterations (default: 5)
+
+Logistic r: Logistic map parameter (default: 3.99)
+
+Logistic x0: Logistic map initial value (default: 0.5)
+
+Cosine μ: Cosine map parameter (default: 0.9)
+
+Cosine x0: Cosine map initial value (default: 0.1)
