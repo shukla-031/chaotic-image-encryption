@@ -1,0 +1,250 @@
+import numpy as np
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk
+import cv2
+import math
+
+class ImageDecryptionApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Image Decryption with Chaotic Maps")
+        self.root.geometry("1000x800")
+        
+        # Variables
+        self.encrypted_img = None
+        self.decrypted_img = None
+        
+        # Create GUI
+        self.create_widgets()
+        
+    def create_widgets(self):
+        # Control Frame
+        control_frame = tk.Frame(self.root)
+        control_frame.pack(pady=10)
+        
+        # Load Encrypted Button
+        self.load_enc_btn = tk.Button(control_frame, text="Load Encrypted Image", 
+                                    command=self.load_encrypted_image, width=20)
+        self.load_enc_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Decrypt Button
+        self.decrypt_btn = tk.Button(control_frame, text="Decrypt Image", 
+                                   command=self.decrypt_image, state=tk.DISABLED, width=20)
+        self.decrypt_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Save Decrypted Button
+        self.save_dec_btn = tk.Button(control_frame, text="Save Decrypted", 
+                                    command=self.save_decrypted_image, state=tk.DISABLED, width=20)
+        self.save_dec_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Image Display Frame
+        img_frame = tk.Frame(self.root)
+        img_frame.pack(pady=10)
+        
+        # Encrypted Image
+        self.encrypted_label = tk.Label(img_frame, text="Encrypted Image", font=('Arial', 12))
+        self.encrypted_label.grid(row=0, column=0, padx=20)
+        self.encrypted_canvas = tk.Canvas(img_frame, width=400, height=400, bg='gray')
+        self.encrypted_canvas.grid(row=1, column=0, padx=20)
+        
+        # Decrypted Image
+        self.decrypted_label = tk.Label(img_frame, text="Decrypted Image", font=('Arial', 12))
+        self.decrypted_label.grid(row=0, column=1, padx=20)
+        self.decrypted_canvas = tk.Canvas(img_frame, width=400, height=400, bg='gray')
+        self.decrypted_canvas.grid(row=1, column=1, padx=20)
+        
+        # Entropy Frame
+        entropy_frame = tk.Frame(self.root)
+        entropy_frame.pack(pady=10)
+        
+        self.encrypted_entropy = tk.StringVar()
+        self.encrypted_entropy.set("Encrypted Entropy: -")
+        tk.Label(entropy_frame, textvariable=self.encrypted_entropy, 
+               font=('Arial', 12)).pack()
+        
+        self.decrypted_entropy = tk.StringVar()
+        self.decrypted_entropy.set("Decrypted Entropy: -")
+        tk.Label(entropy_frame, textvariable=self.decrypted_entropy, 
+               font=('Arial', 12)).pack()
+        
+        # Parameters Frame
+        param_frame = tk.Frame(self.root)
+        param_frame.pack(pady=10)
+        
+        # Arnold Parameters
+        tk.Label(param_frame, text="Arnold Iterations:", font=('Arial', 10)).grid(row=0, column=0, sticky='e')
+        self.arnold_iters = tk.Entry(param_frame, width=5)
+        self.arnold_iters.insert(0, "5")
+        self.arnold_iters.grid(row=0, column=1, sticky='w')
+        
+        # Logistic Map Parameters
+        tk.Label(param_frame, text="Logistic r:", font=('Arial', 10)).grid(row=1, column=0, sticky='e')
+        self.logistic_r = tk.Entry(param_frame, width=5)
+        self.logistic_r.insert(0, "3.99")
+        self.logistic_r.grid(row=1, column=1, sticky='w')
+        
+        tk.Label(param_frame, text="Logistic x0:", font=('Arial', 10)).grid(row=2, column=0, sticky='e')
+        self.logistic_x0 = tk.Entry(param_frame, width=5)
+        self.logistic_x0.insert(0, "0.5")
+        self.logistic_x0.grid(row=2, column=1, sticky='w')
+        
+        # Cosine Map Parameters
+        tk.Label(param_frame, text="Cosine μ:", font=('Arial', 10)).grid(row=3, column=0, sticky='e')
+        self.cosine_mu = tk.Entry(param_frame, width=5)
+        self.cosine_mu.insert(0, "0.9")
+        self.cosine_mu.grid(row=3, column=1, sticky='w')
+        
+        tk.Label(param_frame, text="Cosine x0:", font=('Arial', 10)).grid(row=4, column=0, sticky='e')
+        self.cosine_x0 = tk.Entry(param_frame, width=5)
+        self.cosine_x0.insert(0, "0.1")
+        self.cosine_x0.grid(row=4, column=1, sticky='w')
+    
+    def load_encrypted_image(self):
+        file_path = filedialog.askopenfilename(filetypes=[("TIFF files", "*.tif *.tiff")])
+        if file_path:
+            try:
+                # Read image
+                img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    raise ValueError("Could not read image")
+                
+                self.encrypted_img = img
+                self.decrypted_img = None
+                
+                # Display image
+                self.display_image(self.encrypted_img, self.encrypted_canvas)
+                
+                # Calculate and display entropy
+                entropy = self.calculate_entropy(self.encrypted_img)
+                self.encrypted_entropy.set(f"Encrypted Entropy: {entropy:.4f}")
+                self.decrypted_entropy.set("Decrypted Entropy: -")
+                
+                # Clear decrypted canvas
+                self.decrypted_canvas.delete("all")
+                self.decrypted_canvas.create_text(200, 200, text="Decrypted Image", fill="white")
+                
+                # Enable decrypt button
+                self.decrypt_btn.config(state=tk.NORMAL)
+                self.save_dec_btn.config(state=tk.DISABLED)
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load image: {str(e)}")
+    
+    def display_image(self, img_array, canvas):
+        img_pil = Image.fromarray(img_array)
+        img_pil.thumbnail((400, 400))
+        img_tk = ImageTk.PhotoImage(img_pil)
+        
+        canvas.image = img_tk  # Keep reference
+        canvas.delete("all")
+        canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
+    
+    def calculate_entropy(self, img):
+        """Calculate Shannon entropy of an image"""
+        hist = cv2.calcHist([img], [0], None, [256], [0, 256])
+        hist = hist.ravel() / hist.sum()
+        hist = hist[hist > 0]  # Remove zeros
+        return -np.sum(hist * np.log2(hist))
+    
+    def decrypt_image(self):
+        if self.encrypted_img is None:
+            return
+            
+        try:
+            # Get parameters (must match encryption parameters)
+            arnold_iters = int(self.arnold_iters.get())
+            logistic_r = float(self.logistic_r.get())
+            logistic_x0 = float(self.logistic_x0.get())
+            cosine_mu = float(self.cosine_mu.get())
+            cosine_x0 = float(self.cosine_x0.get())
+            
+            h, w = self.encrypted_img.shape
+            N = h  # Assuming square image
+            
+            # Step 1: Reverse the final Arnold transform
+            # The period for Arnold's cat map is 3N for N×N image
+            period = 3 * N
+            reverse_iters = (period - arnold_iters) % period
+            descrambled = self.arnold_transform(self.encrypted_img, iterations=reverse_iters)
+            
+            # Step 2: Generate the same chaotic sequences
+            logistic_seq = self.generate_logistic_sequence(logistic_r, logistic_x0, h*w)
+            cosine_seq = self.generate_cosine_sequence(cosine_mu, cosine_x0, h*w)
+            
+            # Normalize and reshape
+            logistic_seq = (logistic_seq * 255).astype(np.uint8).reshape((h, w))
+            cosine_seq = (cosine_seq * 255).astype(np.uint8).reshape((h, w))
+            
+            # Reverse the XOR operations (XOR is its own inverse)
+            decrypted = np.bitwise_xor(descrambled, cosine_seq)
+            decrypted = np.bitwise_xor(decrypted, logistic_seq)
+            
+            # Step 3: Reverse the initial Arnold transform
+            self.decrypted_img = self.arnold_transform(decrypted, iterations=reverse_iters)
+            
+            # Display decrypted image
+            self.display_image(self.decrypted_img, self.decrypted_canvas)
+            
+            # Calculate and display entropy
+            entropy = self.calculate_entropy(self.decrypted_img)
+            self.decrypted_entropy.set(f"Decrypted Entropy: {entropy:.4f}")
+            
+            # Enable save button
+            self.save_dec_btn.config(state=tk.NORMAL)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Decryption failed: {str(e)}")
+    
+    def arnold_transform(self, img, iterations=1):
+        """Apply Arnold's cat map transformation"""
+        h, w = img.shape
+        transformed = np.zeros_like(img)
+        
+        for _ in range(iterations):
+            for y in range(h):
+                for x in range(w):
+                    new_x = (x + y) % w
+                    new_y = (x + 2*y) % h
+                    transformed[new_y, new_x] = img[y, x]
+            img = transformed.copy()
+            
+        return img
+    
+    def generate_logistic_sequence(self, r, x0, length):
+        """Generate logistic map sequence"""
+        seq = np.zeros(length)
+        seq[0] = x0
+        
+        for i in range(1, length):
+            seq[i] = r * seq[i-1] * (1 - seq[i-1])
+        
+        return seq
+    
+    def generate_cosine_sequence(self, mu, x0, length):
+        """Generate cosine map sequence"""
+        seq = np.zeros(length)
+        seq[0] = x0
+        
+        for i in range(1, length):
+            seq[i] = mu * np.cos(np.pi * seq[i-1])
+        
+        return seq
+    
+    def save_decrypted_image(self):
+        if self.decrypted_img is not None:
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".tiff",
+                filetypes=[("TIFF files", "*.tif *.tiff"), ("PNG files", "*.png")]
+            )
+            if file_path:
+                try:
+                    cv2.imwrite(file_path, self.decrypted_img)
+                    messagebox.showinfo("Success", "Decrypted image saved successfully!")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save image: {str(e)}")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ImageDecryptionApp(root)
+    root.mainloop()
