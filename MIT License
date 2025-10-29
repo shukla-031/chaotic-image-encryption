@@ -1,0 +1,49 @@
+
+### 3. **main.py** (Optional Launcher)
+```python
+import tkinter as tk
+from tkinter import ttk
+
+def launch_encryption():
+    from encryption import ImageEncryptionApp
+    root = tk.Tk()
+    app = ImageEncryptionApp(root)
+    root.mainloop()
+
+def launch_decryption():
+    from decryption import ImageDecryptionApp
+    root = tk.Tk()
+    app = ImageDecryptionApp(root)
+    root.mainloop()
+
+def main():
+    """Main launcher for the Image Encryption Tool"""
+    root = tk.Tk()
+    root.title("Image Encryption Tool Launcher")
+    root.geometry("300x150")
+    
+    # Style
+    style = ttk.Style()
+    style.configure('TButton', font=('Arial', 12), padding=10)
+    
+    # Frame
+    frame = ttk.Frame(root, padding=20)
+    frame.pack(expand=True, fill='both')
+    
+    # Label
+    label = ttk.Label(frame, text="Choose an application:", font=('Arial', 14))
+    label.pack(pady=10)
+    
+    # Buttons
+    encrypt_btn = ttk.Button(frame, text="Encryption Tool", 
+                           command=launch_encryption, width=20)
+    encrypt_btn.pack(pady=5)
+    
+    decrypt_btn = ttk.Button(frame, text="Decryption Tool", 
+                           command=launch_decryption, width=20)
+    decrypt_btn.pack(pady=5)
+    
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
