@@ -1,110 +1,206 @@
 import numpy as np
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
-import math
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import os
+import time
 
 class ImageEncryptionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Image Encryption with Chaotic Maps")
-        self.root.geometry("1000x800")
+        self.root.title("Advanced Image Encryption with Chaotic Maps")
+        self.root.geometry("1200x800")
+        self.root.configure(bg='#f0f0f0')
+        
+        # Style configuration
+        self.style = ttk.Style()
+        self.style.configure('TButton', font=('Arial', 10), padding=5)
+        self.style.configure('TLabel', font=('Arial', 10))
+        self.style.configure('Header.TLabel', font=('Arial', 12, 'bold'))
         
         # Variables
         self.original_img = None
         self.encrypted_img = None
+        self.encryption_time = None
         
         # Create GUI
         self.create_widgets()
         
     def create_widgets(self):
+        # Main container
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        title_label = ttk.Label(main_frame, text="Advanced Image Encryption System", 
+                               style='Header.TLabel', font=('Arial', 16, 'bold'))
+        title_label.pack(pady=(0, 15))
+        
         # Control Frame
-        control_frame = tk.Frame(self.root)
-        control_frame.pack(pady=10)
+        control_frame = ttk.Frame(main_frame)
+        control_frame.pack(fill=tk.X, pady=10)
         
         # Load Button
-        self.load_btn = tk.Button(control_frame, text="Load Image", 
-                                command=self.load_image, width=15)
+        self.load_btn = ttk.Button(control_frame, text="Load Image", 
+                                command=self.load_image)
         self.load_btn.pack(side=tk.LEFT, padx=5)
         
         # Encrypt Button
-        self.encrypt_btn = tk.Button(control_frame, text="Encrypt Image", 
-                                   command=self.encrypt_image, state=tk.DISABLED, width=15)
+        self.encrypt_btn = ttk.Button(control_frame, text="Encrypt Image", 
+                                   command=self.encrypt_image, state=tk.DISABLED)
         self.encrypt_btn.pack(side=tk.LEFT, padx=5)
         
-        # Save Button
-        self.save_btn = tk.Button(control_frame, text="Save Encrypted", 
-                                command=self.save_image, state=tk.DISABLED, width=15)
-        self.save_btn.pack(side=tk.LEFT, padx=5)
+        # Save Encrypted Button
+        self.save_enc_btn = ttk.Button(control_frame, text="Save Encrypted", 
+                                command=lambda: self.save_image(self.encrypted_img), state=tk.DISABLED)
+        self.save_enc_btn.pack(side=tk.LEFT, padx=5)
         
-        # Image Display Frame
-        img_frame = tk.Frame(self.root)
-        img_frame.pack(pady=10)
+        # Analysis Button
+        self.analysis_btn = ttk.Button(control_frame, text="Security Analysis", 
+                                command=self.security_analysis, state=tk.DISABLED)
+        self.analysis_btn.pack(side=tk.LEFT, padx=5)
         
-        # Original Image
-        self.original_label = tk.Label(img_frame, text="Original Image", font=('Arial', 12))
-        self.original_label.grid(row=0, column=0, padx=20)
-        self.original_canvas = tk.Canvas(img_frame, width=400, height=400, bg='gray')
-        self.original_canvas.grid(row=1, column=0, padx=20)
+        # Content Frame
+        content_frame = ttk.Frame(main_frame)
+        content_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Encrypted Image
-        self.encrypted_label = tk.Label(img_frame, text="Encrypted Image", font=('Arial', 12))
-        self.encrypted_label.grid(row=0, column=1, padx=20)
-        self.encrypted_canvas = tk.Canvas(img_frame, width=400, height=400, bg='gray')
-        self.encrypted_canvas.grid(row=1, column=1, padx=20)
-        
-        # Entropy Frame
-        entropy_frame = tk.Frame(self.root)
-        entropy_frame.pack(pady=10)
-        
-        self.original_entropy = tk.StringVar()
-        self.original_entropy.set("Original Entropy: -")
-        tk.Label(entropy_frame, textvariable=self.original_entropy, 
-               font=('Arial', 12)).pack()
-        
-        self.encrypted_entropy = tk.StringVar()
-        self.encrypted_entropy.set("Encrypted Entropy: -")
-        tk.Label(entropy_frame, textvariable=self.encrypted_entropy, 
-               font=('Arial', 12)).pack()
+        # Left Panel - Parameters and Info
+        left_panel = ttk.Frame(content_frame, width=300)
+        left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        left_panel.pack_propagate(False)
         
         # Parameters Frame
-        param_frame = tk.Frame(self.root)
-        param_frame.pack(pady=10)
+        param_frame = ttk.LabelFrame(left_panel, text="Encryption Parameters", padding=10)
+        param_frame.pack(fill=tk.X, pady=(0, 10))
         
         # Arnold Parameters
-        tk.Label(param_frame, text="Arnold Iterations:", font=('Arial', 10)).grid(row=0, column=0, sticky='e')
-        self.arnold_iters = tk.Entry(param_frame, width=5)
-        self.arnold_iters.insert(0, "5")
-        self.arnold_iters.grid(row=0, column=1, sticky='w')
+        ttk.Label(param_frame, text="Arnold Iterations:").grid(row=0, column=0, sticky='w', pady=2)
+        self.arnold_iters = ttk.Entry(param_frame, width=10)
+        self.arnold_iters.insert(0, "2")
+        self.arnold_iters.grid(row=0, column=1, sticky='w', pady=2)
         
         # Logistic Map Parameters
-        tk.Label(param_frame, text="Logistic r:", font=('Arial', 10)).grid(row=1, column=0, sticky='e')
-        self.logistic_r = tk.Entry(param_frame, width=5)
-        self.logistic_r.insert(0, "3.99")
-        self.logistic_r.grid(row=1, column=1, sticky='w')
+        ttk.Label(param_frame, text="Logistic r:").grid(row=1, column=0, sticky='w', pady=2)
+        self.logistic_r = ttk.Entry(param_frame, width=10)
+        self.logistic_r.insert(0, "3.9999")
+        self.logistic_r.grid(row=1, column=1, sticky='w', pady=2)
         
-        tk.Label(param_frame, text="Logistic x0:", font=('Arial', 10)).grid(row=2, column=0, sticky='e')
-        self.logistic_x0 = tk.Entry(param_frame, width=5)
-        self.logistic_x0.insert(0, "0.5")
-        self.logistic_x0.grid(row=2, column=1, sticky='w')
+        ttk.Label(param_frame, text="Logistic x0:").grid(row=2, column=0, sticky='w', pady=2)
+        self.logistic_x0 = ttk.Entry(param_frame, width=10)
+        self.logistic_x0.insert(0, "0.5123")
+        self.logistic_x0.grid(row=2, column=1, sticky='w', pady=2)
         
-        # Cosine Map Parameters
-        tk.Label(param_frame, text="Cosine μ:", font=('Arial', 10)).grid(row=3, column=0, sticky='e')
-        self.cosine_mu = tk.Entry(param_frame, width=5)
-        self.cosine_mu.insert(0, "0.9")
-        self.cosine_mu.grid(row=3, column=1, sticky='w')
+        # Tent Map Parameters
+        ttk.Label(param_frame, text="Tent μ:").grid(row=3, column=0, sticky='w', pady=2)
+        self.tent_mu = ttk.Entry(param_frame, width=10)
+        self.tent_mu.insert(0, "1.9999")
+        self.tent_mu.grid(row=3, column=1, sticky='w', pady=2)
         
-        tk.Label(param_frame, text="Cosine x0:", font=('Arial', 10)).grid(row=4, column=0, sticky='e')
-        self.cosine_x0 = tk.Entry(param_frame, width=5)
-        self.cosine_x0.insert(0, "0.1")
-        self.cosine_x0.grid(row=4, column=1, sticky='w')
+        ttk.Label(param_frame, text="Tent x0:").grid(row=4, column=0, sticky='w', pady=2)
+        self.tent_x0 = ttk.Entry(param_frame, width=10)
+        self.tent_x0.insert(0, "0.4567")
+        self.tent_x0.grid(row=4, column=1, sticky='w', pady=2)
+        
+        # Chebyshev Map Parameters
+        ttk.Label(param_frame, text="Chebyshev k:").grid(row=5, column=0, sticky='w', pady=2)
+        self.chebyshev_k = ttk.Entry(param_frame, width=10)
+        self.chebyshev_k.insert(0, "4")
+        self.chebyshev_k.grid(row=5, column=1, sticky='w', pady=2)
+        
+        ttk.Label(param_frame, text="Chebyshev x0:").grid(row=6, column=0, sticky='w', pady=2)
+        self.chebyshev_x0 = ttk.Entry(param_frame, width=10)
+        self.chebyshev_x0.insert(0, "0.2345")
+        self.chebyshev_x0.grid(row=6, column=1, sticky='w', pady=2)
+        
+        # Encryption Rounds
+        ttk.Label(param_frame, text="Encryption Rounds:").grid(row=7, column=0, sticky='w', pady=2)
+        self.enc_rounds = ttk.Entry(param_frame, width=10)
+        self.enc_rounds.insert(0, "2")
+        self.enc_rounds.grid(row=7, column=1, sticky='w', pady=2)
+        
+        # Encryption Key
+        ttk.Label(param_frame, text="Encryption Key:").grid(row=8, column=0, sticky='w', pady=2)
+        self.enc_key = ttk.Entry(param_frame, width=10)
+        self.enc_key.insert(0, "high_uaci_fast")
+        self.enc_key.grid(row=8, column=1, sticky='w', pady=2)
+        
+        # Info Frame
+        info_frame = ttk.LabelFrame(left_panel, text="Image Information", padding=10)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        self.img_info_text = tk.Text(info_frame, height=8, width=30, font=('Arial', 9))
+        self.img_info_text.pack(fill=tk.BOTH, expand=True)  # FIXED: Changed BOUNDS to BOTH
+        self.img_info_text.insert(tk.END, "No image loaded")
+        self.img_info_text.config(state=tk.DISABLED)
+        
+        # Entropy Frame
+        entropy_frame = ttk.LabelFrame(left_panel, text="Entropy Analysis", padding=10)
+        entropy_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        self.original_entropy = tk.StringVar()
+        self.original_entropy.set("Original: -")
+        ttk.Label(entropy_frame, textvariable=self.original_entropy).pack(anchor='w')
+        
+        self.encrypted_entropy = tk.StringVar()
+        self.encrypted_entropy.set("Encrypted: -")
+        ttk.Label(entropy_frame, textvariable=self.encrypted_entropy).pack(anchor='w')
+        
+        # Encryption Time Frame
+        time_frame = ttk.LabelFrame(left_panel, text="Encryption Performance", padding=10)
+        time_frame.pack(fill=tk.X)
+        
+        self.encryption_time_var = tk.StringVar()
+        self.encryption_time_var.set("Time: -")
+        ttk.Label(time_frame, textvariable=self.encryption_time_var).pack(anchor='w')
+        
+        # Right Panel - Image Display
+        right_panel = ttk.Frame(content_frame)
+        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        
+        # Image Display Frame
+        img_frame = ttk.Frame(right_panel)
+        img_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        # Original Image
+        original_frame = ttk.LabelFrame(img_frame, text="Original Image", padding=5)
+        original_frame.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        self.original_canvas = tk.Canvas(original_frame, width=300, height=300, bg='gray')
+        self.original_canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Encrypted Image
+        encrypted_frame = ttk.LabelFrame(img_frame, text="Encrypted Image", padding=5)
+        encrypted_frame.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
+        self.encrypted_canvas = tk.Canvas(encrypted_frame, width=300, height=300, bg='gray')
+        self.encrypted_canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Configure grid weights
+        img_frame.columnconfigure(0, weight=1)
+        img_frame.columnconfigure(1, weight=1)
+        img_frame.rowconfigure(0, weight=1)
+        
+        # Progress bar
+        self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
+        self.progress.pack(fill=tk.X, pady=5)
+        
+        # Status bar
+        self.status_var = tk.StringVar()
+        self.status_var.set("Ready")
+        status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
+        status_bar.pack(fill=tk.X, side=tk.BOTTOM)
+    
+    def update_status(self, message):
+        self.status_var.set(message)
+        self.root.update_idletasks()
     
     def load_image(self):
         file_path = filedialog.askopenfilename(filetypes=[
-            ("Image files", "*.tif;*.tiff;*.png;*.jpg;*.bmp")
+            ("Image files", "*.tif;*.tiff;*.png;*.jpg;*.jpeg;*.bmp")
         ])
         if file_path:
             try:
+                self.update_status("Loading image...")
                 # Read image using PIL
                 img = Image.open(file_path).convert('L')  # Convert to grayscale
                 self.original_img = np.array(img)
@@ -112,30 +208,78 @@ class ImageEncryptionApp:
                 # Display image
                 self.display_image(self.original_img, self.original_canvas)
                 
+                # Update image info
+                self.update_image_info(file_path)
+                
                 # Calculate and display entropy
                 entropy = self.calculate_entropy(self.original_img)
-                self.original_entropy.set(f"Original Entropy: {entropy:.4f}")
-                self.encrypted_entropy.set("Encrypted Entropy: -")
+                self.original_entropy.set(f"Original: {entropy:.6f}")
+                self.encrypted_entropy.set("Encrypted: -")
+                self.encryption_time_var.set("Time: -")
                 
                 # Clear encrypted canvas
-                self.encrypted_canvas.delete("all")
-                self.encrypted_canvas.create_text(200, 200, text="Encrypted Image", fill="white")
+                self.clear_canvas(self.encrypted_canvas)
                 
-                # Enable encrypt button
+                # Enable buttons
                 self.encrypt_btn.config(state=tk.NORMAL)
-                self.save_btn.config(state=tk.DISABLED)
+                self.save_enc_btn.config(state=tk.DISABLED)
+                self.analysis_btn.config(state=tk.DISABLED)
+                
+                self.update_status("Image loaded successfully")
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load image: {str(e)}")
+                self.update_status("Error loading image")
+    
+    def update_image_info(self, file_path):
+        self.img_info_text.config(state=tk.NORMAL)
+        self.img_info_text.delete(1.0, tk.END)
+        
+        file_name = os.path.basename(file_path)
+        file_size = os.path.getsize(file_path) / 1024  # KB
+        img_shape = self.original_img.shape
+        
+        info_text = f"File: {file_name}\n"
+        info_text += f"Size: {file_size:.2f} KB\n"
+        info_text += f"Dimensions: {img_shape[1]} x {img_shape[0]}\n"
+        info_text += f"Format: {self.original_img.dtype}\n"
+        info_text += f"Min value: {self.original_img.min()}\n"
+        info_text += f"Max value: {self.original_img.max()}\n"
+        info_text += f"Mean: {self.original_img.mean():.2f}\n"
+        info_text += f"Std: {self.original_img.std():.2f}"
+        
+        self.img_info_text.insert(tk.END, info_text)
+        self.img_info_text.config(state=tk.DISABLED)
+    
+    def clear_canvas(self, canvas):
+        canvas.delete("all")
+        canvas.create_text(150, 150, text="No Image", fill="white", font=('Arial', 12))
     
     def display_image(self, img_array, canvas):
         img_pil = Image.fromarray(img_array)
-        img_pil.thumbnail((400, 400))
+        # Calculate aspect ratio preserving dimensions
+        canvas_width = canvas.winfo_width()
+        canvas_height = canvas.winfo_height()
+        
+        if canvas_width <= 1 or canvas_height <= 1:  # Canvas not yet rendered
+            canvas_width, canvas_height = 300, 300
+            
+        img_ratio = img_pil.width / img_pil.height
+        canvas_ratio = canvas_width / canvas_height
+        
+        if img_ratio > canvas_ratio:
+            new_width = canvas_width
+            new_height = int(canvas_width / img_ratio)
+        else:
+            new_height = canvas_height
+            new_width = int(canvas_height * img_ratio)
+            
+        img_pil = img_pil.resize((new_width, new_height), Image.Resampling.LANCZOS)
         img_tk = ImageTk.PhotoImage(img_pil)
         
         canvas.image = img_tk  # Keep reference
         canvas.delete("all")
-        canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
+        canvas.create_image(canvas_width//2, canvas_height//2, anchor=tk.CENTER, image=img_tk)
     
     def calculate_entropy(self, img):
         """Calculate Shannon entropy of an image"""
@@ -148,94 +292,389 @@ class ImageEncryptionApp:
             return
             
         try:
+            self.progress.start()
+            self.update_status("Encrypting image...")
+            
+            # Start timing
+            start_time = time.time()
+            
             # Get parameters
             arnold_iters = int(self.arnold_iters.get())
             logistic_r = float(self.logistic_r.get())
             logistic_x0 = float(self.logistic_x0.get())
-            cosine_mu = float(self.cosine_mu.get())
-            cosine_x0 = float(self.cosine_x0.get())
+            tent_mu = float(self.tent_mu.get())
+            tent_x0 = float(self.tent_x0.get())
+            chebyshev_k = int(self.chebyshev_k.get())
+            chebyshev_x0 = float(self.chebyshev_x0.get())
+            enc_rounds = int(self.enc_rounds.get())
+            enc_key = self.enc_key.get()
             
-            # Step 1: Apply Arnold's cat map
-            scrambled = self.arnold_transform(self.original_img, iterations=arnold_iters)
+            # Start with original image - use int32 to avoid overflow
+            encrypted = self.original_img.copy().astype(np.int32)
+            h, w = encrypted.shape
             
-            # Step 2: Generate chaotic sequences
-            h, w = scrambled.shape
-            logistic_seq = self.generate_logistic_sequence(logistic_r, logistic_x0, h*w)
-            cosine_seq = self.generate_cosine_sequence(cosine_mu, cosine_x0, h*w)
+            for round_num in range(enc_rounds):
+                self.update_status(f"Encryption round {round_num + 1}/{enc_rounds}...")
+                
+                # Step 1: Arnold transform (only in first round for speed)
+                if round_num == 0:
+                    scrambled = self.arnold_transform_safe(encrypted.astype(np.uint8), iterations=arnold_iters)
+                    scrambled = scrambled.astype(np.int32)
+                else:
+                    scrambled = encrypted
+                
+                # Step 2: Generate chaotic sequences
+                total_pixels = h * w
+                
+                # Use key with round-specific modification
+                round_key = enc_key + str(round_num)
+                key_hash = sum(ord(c) for c in round_key) % 10000
+                np.random.seed(key_hash)
+                
+                # Generate sequences
+                tent_seq = self.generate_tent_sequence(tent_mu, tent_x0 + round_num * 0.001, total_pixels)
+                chebyshev_seq = self.generate_chebyshev_sequence(chebyshev_k, chebyshev_x0 + round_num * 0.001, total_pixels)
+                
+                # Safe normalization
+                tent_seq = self.safe_normalization(tent_seq)
+                chebyshev_seq = self.safe_normalization(chebyshev_seq)
+                
+                # Reshape sequences
+                tent_seq = tent_seq.reshape((h, w)).astype(np.int32)
+                chebyshev_seq = chebyshev_seq.reshape((h, w)).astype(np.int32)
+                
+                # Safe encryption operations
+                # Operation 1: XOR
+                encrypted = self.safe_xor_operation(scrambled, tent_seq)
+                
+                # Operation 2: Safe modular operations
+                encrypted = self.safe_modular_operations(encrypted, chebyshev_seq)
+                
+                # Operation 3: Bit rotation
+                encrypted = self.safe_bit_rotation(encrypted, (round_num * 3 + 1) % 8)
+                
+                # Operation 4: Safe conditional operations
+                encrypted = self.safe_conditional_operations(encrypted, tent_seq)
             
-            # Normalize and reshape
-            logistic_seq = (logistic_seq * 255).astype(np.uint8).reshape((h, w))
-            cosine_seq = (cosine_seq * 255).astype(np.uint8).reshape((h, w))
+            # Final safe conversion to uint8
+            self.encrypted_img = self.safe_final_conversion(encrypted)
             
-            # Apply chaotic encryption
-            encrypted = np.bitwise_xor(scrambled, logistic_seq)
-            encrypted = np.bitwise_xor(encrypted, cosine_seq)
-            
-            # Step 3: Apply Arnold again
-            self.encrypted_img = self.arnold_transform(encrypted, iterations=arnold_iters)
+            # Calculate encryption time
+            end_time = time.time()
+            self.encryption_time = end_time - start_time
             
             # Display encrypted image
             self.display_image(self.encrypted_img, self.encrypted_canvas)
             
             # Calculate and display entropy
             entropy = self.calculate_entropy(self.encrypted_img)
-            self.encrypted_entropy.set(f"Encrypted Entropy: {entropy:.4f}")
+            self.encrypted_entropy.set(f"Encrypted: {entropy:.6f}")
             
-            # Enable save button
-            self.save_btn.config(state=tk.NORMAL)
+            # Display encryption time
+            self.encryption_time_var.set(f"Time: {self.encryption_time:.3f} seconds")
+            
+            # Enable buttons
+            self.save_enc_btn.config(state=tk.NORMAL)
+            self.analysis_btn.config(state=tk.NORMAL)
+            
+            self.progress.stop()
+            self.update_status(f"Encryption completed in {self.encryption_time:.3f} seconds")
             
         except Exception as e:
+            self.progress.stop()
             messagebox.showerror("Error", f"Encryption failed: {str(e)}")
+            self.update_status("Encryption failed")
     
-    def arnold_transform(self, img, iterations=1):
-        """Apply Arnold's cat map transformation"""
+    def arnold_transform_safe(self, img, iterations=1):
+        """Safe Arnold transform without overflow"""
         h, w = img.shape
         transformed = np.zeros_like(img)
         
         for _ in range(iterations):
             for y in range(h):
                 for x in range(w):
-                    new_x = (x + y) % w
-                    new_y = (x + 2*y) % h
+                    new_x = (2*x + y) % w
+                    new_y = (x + y) % h
                     transformed[new_y, new_x] = img[y, x]
             img = transformed.copy()
             
         return img
     
-    def generate_logistic_sequence(self, r, x0, length):
-        """Generate logistic map sequence"""
+    def generate_tent_sequence(self, mu, x0, length):
+        """Generate tent map sequence"""
         seq = np.zeros(length)
         seq[0] = x0
         
+        # Skip transient
+        for i in range(100):
+            if seq[0] < 0.5:
+                seq[0] = mu * seq[0]
+            else:
+                seq[0] = mu * (1 - seq[0])
+        
         for i in range(1, length):
-            seq[i] = r * seq[i-1] * (1 - seq[i-1])
+            if seq[i-1] < 0.5:
+                seq[i] = mu * seq[i-1]
+            else:
+                seq[i] = mu * (1 - seq[i-1])
         
         return seq
     
-    def generate_cosine_sequence(self, mu, x0, length):
-        """Generate cosine map sequence"""
+    def generate_chebyshev_sequence(self, k, x0, length):
+        """Generate Chebyshev polynomial sequence"""
         seq = np.zeros(length)
         seq[0] = x0
         
+        # Skip transient
+        for i in range(100):
+            seq[0] = np.cos(k * np.arccos(seq[0]))
+        
         for i in range(1, length):
-            seq[i] = mu * np.cos(np.pi * seq[i-1])
+            seq[i] = np.cos(k * np.arccos(seq[i-1]))
         
         return seq
     
-    def save_image(self):
-        if self.encrypted_img is not None:
+    def safe_normalization(self, seq):
+        """Safe normalization without overflow"""
+        # Simple min-max normalization
+        seq_min = seq.min()
+        seq_max = seq.max()
+        
+        if seq_max - seq_min > 1e-10:
+            seq_normalized = (seq - seq_min) / (seq_max - seq_min)
+        else:
+            seq_normalized = seq - seq_min
+            
+        return (seq_normalized * 255).astype(np.uint8)
+    
+    def safe_xor_operation(self, img, seq):
+        """Safe XOR operation"""
+        img_uint8 = img.astype(np.uint8)
+        seq_uint8 = seq.astype(np.uint8)
+        
+        result = np.bitwise_xor(img_uint8, seq_uint8)
+        return result.astype(np.int32)
+    
+    def safe_modular_operations(self, img, seq):
+        """Safe modular operations for UACI"""
+        img_uint8 = img.astype(np.uint8)
+        seq_uint8 = seq.astype(np.uint8)
+        
+        # Safe multiplication and addition
+        result = img_uint8.astype(np.int32) + seq_uint8.astype(np.int32)
+        result = result % 256
+        
+        return result
+    
+    def safe_bit_rotation(self, img, bits):
+        """Safe bit rotation"""
+        if bits == 0:
+            return img
+            
+        img_uint8 = img.astype(np.uint8)
+        rotated = ((img_uint8 << bits) | (img_uint8 >> (8 - bits))) & 0xFF
+        return rotated.astype(np.int32)
+    
+    def safe_conditional_operations(self, img, control_seq):
+        """Safe conditional operations"""
+        img_uint8 = img.astype(np.uint8)
+        control_uint8 = control_seq.astype(np.uint8)
+        
+        # Simple conditional inversion
+        mask = control_uint8 > 128
+        result = img_uint8.copy()
+        result[mask] = 255 - result[mask]
+        
+        return result.astype(np.int32)
+    
+    def safe_final_conversion(self, img):
+        """Safe final conversion to uint8"""
+        # Ensure all values are in 0-255 range
+        img_clipped = np.clip(img, 0, 255)
+        return img_clipped.astype(np.uint8)
+    
+    def save_image(self, img):
+        if img is not None:
             file_path = filedialog.asksaveasfilename(
-                defaultextension=".tiff",
-                filetypes=[("TIFF files", "*.tif;*.tiff"), ("PNG files", "*.png")]
+                defaultextension=".png",
+                filetypes=[("PNG files", "*.png"), ("TIFF files", "*.tif;*.tiff"), 
+                          ("JPEG files", "*.jpg;*.jpeg"), ("BMP files", "*.bmp")]
             )
             if file_path:
                 try:
-                    Image.fromarray(self.encrypted_img).save(file_path)
+                    Image.fromarray(img).save(file_path)
                     messagebox.showinfo("Success", "Image saved successfully!")
+                    self.update_status("Image saved successfully")
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to save image: {str(e)}")
+                    self.update_status("Error saving image")
+    
+    def security_analysis(self):
+        if self.original_img is None or self.encrypted_img is None:
+            messagebox.showwarning("Warning", "Please encrypt an image first")
+            return
+        
+        try:
+            self.update_status("Performing security analysis...")
+            
+            # Create analysis window
+            analysis_window = tk.Toplevel(self.root)
+            analysis_window.title("Security Analysis")
+            analysis_window.geometry("800x600")
+            analysis_window.transient(self.root)
+            analysis_window.grab_set()
+            
+            # Create notebook for tabs
+            notebook = ttk.Notebook(analysis_window)
+            notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Histogram Analysis Tab
+            hist_frame = ttk.Frame(notebook)
+            notebook.add(hist_frame, text="Histograms")
+            
+            fig_hist, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+            fig_hist.suptitle("Pixel Value Distribution")
+            
+            # Original histogram
+            ax1.hist(self.original_img.flatten(), bins=256, range=(0, 255), alpha=0.7, color='blue')
+            ax1.set_title("Original Image")
+            ax1.set_xlabel("Pixel Value")
+            ax1.set_ylabel("Frequency")
+            
+            # Encrypted histogram
+            ax2.hist(self.encrypted_img.flatten(), bins=256, range=(0, 255), alpha=0.7, color='red')
+            ax2.set_title("Encrypted Image")
+            ax2.set_xlabel("Pixel Value")
+            ax2.set_ylabel("Frequency")
+            
+            plt.tight_layout()
+            
+            hist_canvas = FigureCanvasTkAgg(fig_hist, hist_frame)
+            hist_canvas.draw()
+            hist_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            
+            # Correlation Analysis Tab
+            corr_frame = ttk.Frame(notebook)
+            notebook.add(corr_frame, text="Correlation")
+            
+            fig_corr, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+            fig_corr.suptitle("Adjacent Pixel Correlation")
+            
+            # Original image correlation
+            self.plot_correlation(ax1, self.original_img, "Original Image")
+            
+            # Encrypted image correlation
+            self.plot_correlation(ax2, self.encrypted_img, "Encrypted Image")
+            
+            plt.tight_layout()
+            
+            corr_canvas = FigureCanvasTkAgg(fig_corr, corr_frame)
+            corr_canvas.draw()
+            corr_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            
+            # Security Metrics Tab
+            metrics_frame = ttk.Frame(notebook)
+            notebook.add(metrics_frame, text="Security Metrics")
+            
+            # Calculate metrics
+            original_entropy = self.calculate_entropy(self.original_img)
+            encrypted_entropy = self.calculate_entropy(self.encrypted_img)
+            
+            original_corr = self.calculate_correlation(self.original_img)
+            encrypted_corr = self.calculate_correlation(self.encrypted_img)
+            
+            npcr, uaci = self.calculate_differential_analysis(self.original_img, self.encrypted_img)
+            
+            # Display metrics
+            metrics_text = f"""
+            Encryption Performance (SAFE VERSION):
+            - Encryption Time: {self.encryption_time:.3f} seconds
+            - Encryption Rounds: {self.enc_rounds.get()}
+            
+            Entropy Analysis:
+            - Original Image: {original_entropy:.6f}
+            - Encrypted Image: {encrypted_entropy:.6f}
+            - Ideal Value: ~7.999 (for random data)
+            
+            Correlation Coefficient:
+            - Original Image: {original_corr:.6f}
+            - Encrypted Image: {encrypted_corr:.6f}
+            - Ideal Value: ~0.0 (for random data)
+            
+            Differential Analysis:
+            - NPCR (Number of Pixels Change Rate): {npcr:.4f}%
+            - UACI (Unified Average Changing Intensity): {uaci:.4f}%
+            - Ideal NPCR: ~99.6094%
+            - Ideal UACI: ~33.4635%
+            """
+            
+            metrics_label = tk.Text(metrics_frame, wrap=tk.WORD, font=('Arial', 10))
+            metrics_label.insert(tk.END, metrics_text)
+            metrics_label.config(state=tk.DISABLED)
+            metrics_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            self.update_status("Security analysis completed")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Security analysis failed: {str(e)}")
+            self.update_status("Security analysis failed")
+    
+    def plot_correlation(self, ax, img, title):
+        """Plot correlation between adjacent pixels"""
+        h, w = img.shape
+        
+        # Select random pixels
+        num_pixels = min(5000, h * w)
+        indices = np.random.choice(h * w, num_pixels, replace=False)
+        
+        # Get horizontal adjacent pixels
+        x_coords = indices % w
+        y_coords = indices // w
+        
+        # Ensure we don't go out of bounds
+        valid = x_coords < w - 1
+        x_coords = x_coords[valid]
+        y_coords = y_coords[valid]
+        
+        pixels = img[y_coords, x_coords]
+        adjacent_pixels = img[y_coords, x_coords + 1]
+        
+        ax.scatter(pixels, adjacent_pixels, s=1, alpha=0.5)
+        ax.set_title(title)
+        ax.set_xlabel("Pixel (x,y)")
+        ax.set_ylabel("Pixel (x+1,y)")
+    
+    def calculate_correlation(self, img):
+        """Calculate correlation coefficient between adjacent pixels"""
+        h, w = img.shape
+        
+        # Flatten the image and create shifted versions
+        flat_img = img.flatten()
+        
+        # Horizontal correlation
+        if len(flat_img) > 1:
+            corr = np.corrcoef(flat_img[:-1], flat_img[1:])[0, 1]
+            return corr if not np.isnan(corr) else 1.0
+        return 1.0
+    
+    def calculate_differential_analysis(self, img1, img2):
+        """Calculate NPCR and UACI between two images"""
+        if img1.shape != img2.shape:
+            return 0, 0
+        
+        # NPCR calculation
+        diff_pixels = np.sum(img1 != img2)
+        total_pixels = img1.size
+        npcr = (diff_pixels / total_pixels) * 100
+        
+        # UACI calculation
+        diff_intensity = np.sum(np.abs(img1.astype(float) - img2.astype(float)))
+        total_intensity = img1.size * 255
+        uaci = (diff_intensity / total_intensity) * 100
+        
+        return npcr, uaci
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = ImageEncryptionApp(root)
-    root.mainloop()
+    root.mainloop() 
